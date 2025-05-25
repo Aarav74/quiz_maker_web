@@ -1,0 +1,30 @@
+{
+  "name": "quiz-generator-api",
+  "version": "1.0.0",
+  "description": "Quiz Generator API using Express.js and Hugging Face",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "multer": "^1.4.5-lts.1",
+    "node-fetch": "^2.7.0",
+    "pdf-parse": "^1.1.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  },
+  "keywords": [
+    "quiz",
+    "generator",
+    "api",
+    "express",
+    "huggingface"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}
