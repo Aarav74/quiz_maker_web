@@ -347,18 +347,27 @@ class _QuizGenerationScreenState extends State<QuizGenerationScreen>
 
             // Main content
             SafeArea(
-              child: Column(
-                children: [
+              child: CustomScrollView(
+                physics: const BouncingScrollPhysics(),
+                slivers: [
                   // Custom App Bar
-                  _buildCustomAppBar(),
+                  SliverToBoxAdapter(child: _buildCustomAppBar()),
 
-                  // Main content area - FIXED: Using Flexible instead of Expanded
-                  Flexible(
-                    child: _errorMessage != null
-                        ? _buildErrorContent()
-                        : _isGenerating
-                        ? _buildLoadingContent()
-                        : _buildSuccessContent(),
+                  // Main content area
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(
+                      20.0,
+                      0.0,
+                      20.0,
+                      MediaQuery.of(context).padding.bottom + 36.0,
+                    ),
+                    sliver: SliverToBoxAdapter(
+                      child: _errorMessage != null
+                          ? _buildErrorContent()
+                          : _isGenerating
+                          ? _buildLoadingContent()
+                          : _buildSuccessContent(),
+                    ),
                   ),
                 ],
               ),
@@ -427,14 +436,19 @@ class _QuizGenerationScreenState extends State<QuizGenerationScreen>
   }
 
   Widget _buildLoadingContent() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20.0),
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        minHeight:
+            MediaQuery.of(context).size.height -
+            MediaQuery.of(context).padding.top -
+            kToolbarHeight -
+            MediaQuery.of(context).padding.bottom,
+      ),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Add some spacing at the top to keep it visually centered
-          SizedBox(height: MediaQuery.of(context).size.height * 0.05),
-
-          // AI Brain Animation - FIXED: Reduced size for smaller screens
+          // AI Brain Animation
           _buildAIBrainAnimation(),
 
           const SizedBox(height: 30),
@@ -490,9 +504,6 @@ class _QuizGenerationScreenState extends State<QuizGenerationScreen>
 
           // Progress steps
           _buildProgressSteps(),
-
-          // Add bottom spacing
-          const SizedBox(height: 20),
         ],
       ),
     );
@@ -731,167 +742,188 @@ class _QuizGenerationScreenState extends State<QuizGenerationScreen>
   }
 
   Widget _buildErrorContent() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
-      child: Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.red.withOpacity(0.3)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Error icon with animation
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.red.withOpacity(0.2),
-              ),
-              child: const Icon(
-                Icons.error_outline,
-                size: 40,
-                color: Colors.red,
-              ),
-            ).animate().scale(delay: 200.ms),
-
-            const SizedBox(height: 24),
-
-            const Text(
-              'Oops! Something went wrong',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-              textAlign: TextAlign.center,
-            ).animate().fadeIn(delay: 400.ms),
-
-            const SizedBox(height: 16),
-
-            Text(
-              _errorMessage!,
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.white70,
-                height: 1.5,
-              ),
-              textAlign: TextAlign.center,
-            ).animate().fadeIn(delay: 600.ms),
-
-            const SizedBox(height: 32),
-
-            // Retry button with style
-            ElevatedButton.icon(
-              onPressed: () {
-                setState(() {
-                  _errorMessage = null;
-                  _isGenerating = true;
-                  _progress = 0;
-                });
-                _generateQuiz();
-              },
-              icon: const Icon(Icons.refresh),
-              label: const Text(
-                'Try Again',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepPurple,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 16,
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        minHeight:
+            MediaQuery.of(context).size.height -
+            MediaQuery.of(context).padding.top -
+            kToolbarHeight -
+            MediaQuery.of(context).padding.bottom,
+      ),
+      child: Center(
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 24.0),
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.red.withOpacity(0.3)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Error icon with animation
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.red.withOpacity(0.2),
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                child: const Icon(
+                  Icons.error_outline,
+                  size: 40,
+                  color: Colors.red,
                 ),
-              ),
-            ).animate().fadeIn(delay: 800.ms).slideY(begin: 0.3, end: 0),
-          ],
+              ).animate().scale(delay: 200.ms),
+
+              const SizedBox(height: 24),
+
+              const Text(
+                'Oops! Something went wrong',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+                textAlign: TextAlign.center,
+              ).animate().fadeIn(delay: 400.ms),
+
+              const SizedBox(height: 16),
+
+              Text(
+                _errorMessage!,
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Colors.white70,
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ).animate().fadeIn(delay: 600.ms),
+
+              const SizedBox(height: 32),
+
+              // Retry button with style
+              ElevatedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _errorMessage = null;
+                    _isGenerating = true;
+                    _progress = 0;
+                  });
+                  _generateQuiz();
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text(
+                  'Try Again',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepPurple,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32,
+                    vertical: 16,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ).animate().fadeIn(delay: 800.ms).slideY(begin: 0.3, end: 0),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildSuccessContent() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(32.0),
-      child: Column(
-        children: [
-          // Success animation
-          Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  Colors.green.withOpacity(0.8),
-                  Colors.green.withOpacity(0.4),
-                ],
-              ),
-            ),
-            child: const Icon(
-              Icons.check_circle,
-              size: 60,
-              color: Colors.white,
-            ),
-          ).animate().scale(delay: 200.ms, duration: 800.ms),
-
-          const SizedBox(height: 32),
-
-          const Text(
-            'Quiz Generated Successfully! 🎉',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-            textAlign: TextAlign.center,
-          ).animate().fadeIn(delay: 600.ms).slideY(begin: 0.3, end: 0),
-
-          const SizedBox(height: 16),
-
-          const Text(
-            'Your intelligent quiz is ready to challenge minds!',
-            style: TextStyle(fontSize: 16, color: Colors.white70),
-            textAlign: TextAlign.center,
-          ).animate().fadeIn(delay: 800.ms),
-
-          const SizedBox(height: 40),
-
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => QuizResultsScreen(
-                    questions: _questions,
-                    quizData: _questions,
-                    documentTitle: 'Quiz',
-                  ),
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        minHeight:
+            MediaQuery.of(context).size.height -
+            MediaQuery.of(context).padding.top -
+            kToolbarHeight -
+            MediaQuery.of(context).padding.bottom,
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Success animation
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    Colors.green.withOpacity(0.8),
+                    Colors.green.withOpacity(0.4),
+                  ],
                 ),
-              );
-            },
-            icon: const Icon(Icons.quiz),
-            label: const Text(
-              'View Quiz',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 18),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
               ),
-            ),
-          ).animate().fadeIn(delay: 1000.ms).slideY(begin: 0.3, end: 0),
-        ],
+              child: const Icon(
+                Icons.check_circle,
+                size: 60,
+                color: Colors.white,
+              ),
+            ).animate().scale(delay: 200.ms, duration: 800.ms),
+
+            const SizedBox(height: 32),
+
+            const Text(
+              'Quiz Generated Successfully! 🎉',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+              textAlign: TextAlign.center,
+            ).animate().fadeIn(delay: 600.ms).slideY(begin: 0.3, end: 0),
+
+            const SizedBox(height: 16),
+
+            const Text(
+              'Your intelligent quiz is ready to challenge minds!',
+              style: TextStyle(fontSize: 16, color: Colors.white70),
+              textAlign: TextAlign.center,
+            ).animate().fadeIn(delay: 800.ms),
+
+            const SizedBox(height: 40),
+
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => QuizResultsScreen(
+                      questions: _questions,
+                      quizData: _questions,
+                      documentTitle: 'Quiz',
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.quiz),
+              label: const Text(
+                'View Quiz',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 40,
+                  vertical: 18,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+            ).animate().fadeIn(delay: 1000.ms).slideY(begin: 0.3, end: 0),
+          ],
+        ),
       ),
     );
   }
