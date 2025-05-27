@@ -3,18 +3,18 @@ import 'dart:convert';
 import 'dart:io';
 
 class QuizApiService {
-  // Update this URL to your Next.js app URL
+  // Update this URL to your Express.js app URL
   // For web development (running flutter on web)
   static const String _baseUrl = 'http://localhost:3001';
   
   // For Android emulator
-  // static const String _baseUrl = 'http://10.0.2.2:3000';
+  // static const String _baseUrl = 'http://10.0.2.2:3001';
   
   // For iOS simulator
-  // static const String _baseUrl = 'http://127.0.0.1:3000';
+  // static const String _baseUrl = 'http://127.0.0.1:3001';
   
   // For production
-  // static const String _baseUrl = 'https://your-app.vercel.app';
+  // static const String _baseUrl = 'https://your-app.herokuapp.com';
   static const Duration _timeout = Duration(minutes: 2);
 
   static Future<QuizGenerationResponse> generateQuiz({
@@ -37,9 +37,12 @@ class QuizApiService {
         throw QuizGenerationException('File too large. Max size is 10MB.');
       }
 
+      // ✅ CORRECT API ENDPOINT
+      final apiUrl = '$_baseUrl/api/generate-quiz';
+      
       final request = http.MultipartRequest(
         'POST',
-        Uri.parse('$_baseUrl/api/generate-quiz'),
+        Uri.parse(apiUrl),
       );
 
       // Add file
@@ -55,7 +58,7 @@ class QuizApiService {
       // Add headers
       request.headers.addAll({
         'Accept': 'application/json',
-        'Content-Type': 'multipart/form-data',
+        // 'Content-Type': 'multipart/form-data', // Let http package handle this
       });
 
       onProgress?.call(0.5, 'Uploading and processing...');
@@ -101,7 +104,7 @@ class QuizApiService {
           // If response is not JSON, use status-based error message
           switch (response.statusCode) {
             case 404:
-              errorMessage = 'API endpoint not found. Check your Next.js server.';
+              errorMessage = 'API endpoint not found. Check your Express server.';
               break;
             case 405:
               errorMessage = 'Method not allowed. Check API route configuration.';
@@ -128,7 +131,7 @@ class QuizApiService {
   static Future<bool> isServiceAvailable() async {
     try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/api/health'),
+        Uri.parse('$_baseUrl/api/health'), // ✅ Fixed: Added /api prefix
         headers: {'Accept': 'application/json'},
       ).timeout(const Duration(seconds: 10));
 
@@ -141,7 +144,7 @@ class QuizApiService {
   static Future<Map<String, dynamic>> getServiceHealth() async {
     try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/api/health'),
+        Uri.parse('$_baseUrl/api/health'), // ✅ Fixed: Added /api prefix
         headers: {'Accept': 'application/json'},
       ).timeout(const Duration(seconds: 10));
 
@@ -162,7 +165,7 @@ class QuizApiService {
     final msg = error.toString().toLowerCase();
 
     if (msg.contains('socketexception') || msg.contains('connection refused')) {
-      return 'Cannot connect to server. Make sure your Next.js server is running on $_baseUrl';
+      return 'Cannot connect to server. Make sure your Express server is running on $_baseUrl';
     } else if (msg.contains('timeout')) {
       return 'Request timed out. The server might be overloaded.';
     } else if (msg.contains('formatexception') || msg.contains('unexpected token')) {

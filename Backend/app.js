@@ -6,28 +6,33 @@ const app = express();
 
 // CORS configuration for Flutter
 const corsOptions = {
-  origin: [
-    // 'http://localhost:3001',  // Flutter web dev
-    // 'http://127.0.0.1:3000',  // Alternative localhost
-    // 'http://localhost:8080',  // Flutter web build
-    // 'http://localhost:4040',  // Flutter web alternative
-    '*' // Allow all origins in development (remove in production)
-  ],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin || origin.startsWith('http://localhost') || origin.startsWith('https://localhost')) {
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS: ' + origin));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
 };
 
-// Middleware
-
-
-
+// Apply CORS middleware first - REMOVE DUPLICATE
 app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
+
+// Other middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Add request logging
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
-  console.log('Headers:', req.headers);
-  console.log('Body:', req.body);
+  if (req.method !== 'GET') {
+    console.log('Headers:', req.headers);
+    console.log('Body:', req.body);
+  }
   next();
 });
 
@@ -51,9 +56,6 @@ app.get('/', (req, res) => {
 // API routes
 app.use('/api', apiRoutes);
 
-// Handle preflight requests
-app.options('*', cors(corsOptions));
-
 // 404 handler for API routes
 app.use('/api/*', (req, res) => {
   res.status(404).json({ 
@@ -69,6 +71,14 @@ app.use('/api/*', (req, res) => {
 // Global error handling
 app.use((err, req, res, next) => {
   console.error('Error occurred:', err.stack);
+  
+  // Handle CORS errors
+  if (err.message && err.message.includes('Not allowed by CORS')) {
+    return res.status(403).json({
+      success: false,
+      error: 'CORS error: Origin not allowed'
+    });
+  }
   
   // Handle specific error types
   if (err.code === 'LIMIT_FILE_SIZE') {

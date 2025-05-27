@@ -8,8 +8,6 @@ const pdfParse = require('pdf-parse'); // npm install pdf-parse
 
 const router = express.Router();
 
-
-
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -96,17 +94,21 @@ router.post('/generate-quiz', upload.single('document'), async (req, res) => {
       throw new Error('Document content is too short. Please provide a document with more content.');
     }
 
-    // Generate quiz using Hugging Face or fallback method
+    // Generate quiz using fallback method (Hugging Face integration commented out for now)
     let quiz;
     try {
-      quiz = await generateQuizWithHuggingFace(
-        documentText, 
-        parseInt(numQuestions), 
-        difficulty, 
-        huggingFaceToken
-      );
+      // For now, we'll use the fallback method as it's more reliable
+      quiz = generateFallbackQuiz(documentText, parseInt(numQuestions), difficulty);
+      
+      // Uncomment this if you have a valid Hugging Face token
+      // quiz = await generateQuizWithHuggingFace(
+      //   documentText, 
+      //   parseInt(numQuestions), 
+      //   difficulty, 
+      //   huggingFaceToken
+      // );
     } catch (error) {
-      console.warn('Hugging Face generation failed, using fallback:', error.message);
+      console.warn('Quiz generation failed:', error.message);
       quiz = generateFallbackQuiz(documentText, parseInt(numQuestions), difficulty);
     }
 
@@ -150,25 +152,22 @@ router.post('/generate-quiz', upload.single('document'), async (req, res) => {
   }
 });
 
-// Hugging Face integration
+// Hugging Face integration (currently not used)
 async function generateQuizWithHuggingFace(documentText, numQuestions, difficulty, token) {
-  const API_URL = 'https://api-inference.huggingface.co/models/microsoft/DialoGPT-large';
-  // Alternative models to try:
-  // 'https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill'
-  // 'https://api-inference.huggingface.co/models/google/flan-t5-large'
+  // Use a more suitable model for text generation
+  const API_URL = 'https://api-inference.huggingface.co/models/google/flan-t5-large';
 
-  const prompt = `Create ${numQuestions} multiple choice questions based on this document. 
-Make questions ${difficulty} difficulty level. 
-Format: Question: [question text]
-A) [option 1]
-B) [option 2] 
-C) [option 3]
-D) [option 4]
-Answer: [A/B/C/D]
+  const prompt = `Generate ${numQuestions} multiple choice questions with ${difficulty} difficulty based on this text:
 
-Document: ${documentText.substring(0, 1500)}
+${documentText.substring(0, 1000)}
 
-Questions:`;
+Format each question as:
+Q: [question]
+A) [option]
+B) [option] 
+C) [option]
+D) [option]
+Correct: [A/B/C/D]`;
 
   const response = await fetch(API_URL, {
     method: 'POST',
@@ -179,10 +178,9 @@ Questions:`;
     body: JSON.stringify({
       inputs: prompt,
       parameters: {
-        max_new_tokens: 1000,
+        max_new_tokens: 800,
         temperature: 0.7,
-        do_sample: true,
-        return_full_text: false
+        do_sample: true
       }
     })
   });
@@ -195,55 +193,119 @@ Questions:`;
   const result = await response.json();
   console.log('Hugging Face response:', result);
 
-  // Parse the generated text (this is simplified - you might need more sophisticated parsing)
-  const generatedText = result[0]?.generated_text || result.generated_text || '';
-  
-  // For now, return fallback since parsing LLM output requires more work
+  // This would need proper parsing of the generated text
+  // For now, fall back to the simple method
   throw new Error('Using fallback generation method');
 }
 
-// Fallback quiz generation
+// Improved fallback quiz generation
 function generateFallbackQuiz(documentText, numQuestions, difficulty) {
-  const sentences = documentText.split(/[.!?]+/).filter(s => s.length > 20);
-  const words = documentText.split(/\s+/).filter(w => w.length > 4);
+  const sentences = documentText
+    .split(/[.!?]+/)
+    .map(s => s.trim())
+    .filter(s => s.length > 30 && s.length < 200);
+  
+  const words = documentText
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(w => w.length > 4 && /^[a-zA-Z]+$/.test(w));
+  
+  // Get unique important words
+  const wordFreq = {};
+  words.forEach(word => {
+    wordFreq[word] = (wordFreq[word] || 0) + 1;
+  });
+  
+  const importantWords = Object.keys(wordFreq)
+    .filter(word => wordFreq[word] > 1)
+    .sort((a, b) => wordFreq[b] - wordFreq[a])
+    .slice(0, 20);
+
   const questions = [];
+  const usedSentences = new Set();
 
   for (let i = 0; i < Math.min(numQuestions, sentences.length); i++) {
-    const sentence = sentences[i].trim();
-    const importantWords = words.filter(w => sentence.includes(w)).slice(0, 3);
+    let sentence = sentences[i];
+    let attempts = 0;
     
-    if (importantWords.length > 0) {
-      const targetWord = importantWords[0];
-      const wrongOptions = words.filter(w => w !== targetWord).slice(0, 3);
+    // Try to find a sentence we haven't used
+    while (usedSentences.has(sentence) && attempts < sentences.length) {
+      sentence = sentences[Math.floor(Math.random() * sentences.length)];
+      attempts++;
+    }
+    
+    if (usedSentences.has(sentence)) break;
+    usedSentences.add(sentence);
+
+    // Find a key term in this sentence
+    const sentenceWords = sentence.toLowerCase().split(/\s+/);
+    const keyWord = importantWords.find(word => sentenceWords.includes(word));
+    
+    if (keyWord) {
+      const otherWords = importantWords.filter(w => w !== keyWord).slice(0, 3);
       
-      const question = {
-        question: `Based on the document, what is mentioned in relation to "${targetWord}"?`,
-        options: [
-          `It relates to ${sentence.substring(0, 50)}...`,
-          `It connects to ${wrongOptions[0] || 'other concepts'}`,
-          `It refers to ${wrongOptions[1] || 'different topics'}`,
-          `It means ${wrongOptions[2] || 'alternative ideas'}`
-        ],
-        correct_answer: 0,
-        explanation: `The document mentions: "${sentence.substring(0, 100)}..."`
-      };
+      // Create different question types based on difficulty
+      let question;
+      if (difficulty === 'easy') {
+        question = {
+          question: `According to the document, what is mentioned about "${keyWord}"?`,
+          options: [
+            sentence.substring(0, 80) + (sentence.length > 80 ? '...' : ''),
+            `It relates to ${otherWords[0] || 'different concepts'}`,
+            `It involves ${otherWords[1] || 'other topics'}`,
+            `It concerns ${otherWords[2] || 'alternative subjects'}`
+          ],
+          correct_answer: 0,
+          explanation: `The document states: "${sentence}"`
+        };
+      } else if (difficulty === 'medium') {
+        question = {
+          question: `What can be inferred about "${keyWord}" from the document?`,
+          options: [
+            `It is described as: ${sentence.substring(0, 60)}...`,
+            `It primarily involves ${otherWords[0] || 'unrelated concepts'}`,
+            `It is mainly about ${otherWords[1] || 'different subjects'}`,
+            `It focuses on ${otherWords[2] || 'other topics'}`
+          ],
+          correct_answer: 0,
+          explanation: `Based on the text: "${sentence}"`
+        };
+      } else { // hard
+        question = {
+          question: `Analyze the relationship between "${keyWord}" and the main concept discussed in the document.`,
+          options: [
+            `${keyWord} is integral to the main discussion as shown by: ${sentence.substring(0, 50)}...`,
+            `${keyWord} contradicts the main theme regarding ${otherWords[0] || 'other aspects'}`,
+            `${keyWord} is unrelated to the core concepts involving ${otherWords[1] || 'different elements'}`,
+            `${keyWord} minimally impacts the discussion about ${otherWords[2] || 'various topics'}`
+          ],
+          correct_answer: 0,
+          explanation: `The document demonstrates this relationship through: "${sentence}"`
+        };
+      }
       
       questions.push(question);
     }
   }
 
-  // If we couldn't generate enough questions, add some generic ones
-  while (questions.length < numQuestions && questions.length < 5) {
+  // Fill remaining questions if needed
+  while (questions.length < numQuestions && questions.length < 10) {
+    const remainingSentences = sentences.filter(s => !usedSentences.has(s));
+    if (remainingSentences.length === 0) break;
+    
+    const randomSentence = remainingSentences[Math.floor(Math.random() * remainingSentences.length)];
+    usedSentences.add(randomSentence);
+    
     questions.push({
-      question: `What is the main topic of the document?`,
+      question: `What does the document mention about the following topic?`,
       options: [
-        'The content provided in the uploaded document',
-        'Unrelated information',
-        'Random topics',
-        'General knowledge'
+        randomSentence.substring(0, 80) + (randomSentence.length > 80 ? '...' : ''),
+        'This information is not discussed in the document',
+        'The document contradicts this information',
+        'This topic is mentioned differently'
       ],
       correct_answer: 0,
-      explanation: 'Based on the document content analysis.'
+      explanation: `The document states: "${randomSentence}"`
     });
   }
 
