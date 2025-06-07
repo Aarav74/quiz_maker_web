@@ -21,38 +21,50 @@ on:
       - api_service
       - file_picker_service
       - quiz_card
-      
 
 jobs:
   build:
-    name: Build & Test
+    name: Build & Test (Flutter Web)
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout source
+      - name: 📥 Checkout source code
         uses: actions/checkout@v4
 
-      - name: Set up Flutter
+      - name: 💡 Set up Flutter SDK
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.32.0' # Replace with your Flutter version
+          flutter-version: '3.32.0'  # Use your exact version
 
-      - name: Install dependencies
+      - name: 📦 Install dependencies
         run: flutter pub get
 
-      - name: Format check
+      - name: ✅ Format check (strict)
         run: dart format --set-exit-if-changed .
 
-      - name: Analyze project
+      # Optional: Use this instead if you want auto-formatting
+      # - name: ✅ Auto-format code (non-blocking)
+      #   run: |
+      #     dart format .
+      #     echo "Code formatted (if needed), continuing..."
+
+      - name: 🧪 Static code analysis
         run: flutter analyze
 
-      - name: Run tests
+      - name: 🧪 Run tests
         run: flutter test
 
-      # Optional: Build APK (for Android)
-      - name: Flutter run
-        run: flutter run -d chrome
+      - name: 🌐 Build Flutter Web
+        run: flutter build web
 
-      # Optional: Build iOS (requires macOS runners, not supported on Ubuntu)
-      # - name: Build iOS
-      #   run: flutter build ios --no-codesign
+      # Optional: Preview in Chrome (headless)
+      # Note: This is usually for local dev, not CI. `flutter run` may hang in CI.
+      # - name: 🔍 Attempt Flutter Web run
+      #   run: flutter run -d chrome --no-sound-null-safety --web-renderer html --release
+
+      # Optional: Upload web build as artifact
+      # - name: 📤 Upload web build artifact
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: web-build
+      #     path: build/web
